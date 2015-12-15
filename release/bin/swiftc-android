@@ -1,0 +1,5 @@
+#!/bin/bash
+mypath=`which $0`
+mydir=`dirname $mypath`
+which armv7-none-linux-androideabi-ld >/dev/null || echo "you didn't symlink arm-linux-androideabi-ld.bfd; please check the README"
+$mydir/swiftc -target armv7-none-linux-androideabi -Xlinker --allow-shlib-undefined $@
