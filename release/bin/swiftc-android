@@ -1,5 +1,12 @@
 #!/bin/bash
 mypath=`which $0`
 mydir=`dirname $mypath`
-which armv7-none-linux-androideabi-ld >/dev/null || echo "you didn't symlink arm-linux-androideabi-ld.bfd; please check the README"
+if [ -z $ANDROID_NDK_HOME ]
+then
+	echo "ANDROID_NDK_HOME not set: run \"export ANDROID_NDK_HOME=/path/to/ndk\""
+	exit 1
+fi
+clangpath=$ANDROID_NDK_HOME/toolchains/llvm-3.6/prebuilt/linux-x86_64/bin
+gccpath=$ANDROID_NDK_HOME/toolchains/arm-linux-androideabi-4.8/prebuilt/linux-x86_64/bin
+export PATH=$clangpath:$gccpath:$PATH:`pwd`
 $mydir/swiftc -target armv7-none-linux-androideabi -Xlinker --allow-shlib-undefined $@

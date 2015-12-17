@@ -5,5 +5,6 @@ for i in $mydir/../lib/swift/android/*.so
 do
 	adb push $i /data/local/tmp
 done
+adb push $ANDROID_NDK_HOME/sources/cxx-stl/llvm-libc++/libs/armeabi-v7a/libc++_shared.so /data/local/tmp
 adb push $1 /data/local/tmp
 adb shell chmod 755 /data/local/tmp/$1
