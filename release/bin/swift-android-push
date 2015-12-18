@@ -3,8 +3,14 @@ mypath=`which $0`
 mydir=`dirname $mypath`
 for i in $mydir/../lib/swift/android/*.so
 do
+	echo $i
 	adb push $i /data/local/tmp
 done
+echo "libc++_shared.so"
 adb push $ANDROID_NDK_HOME/sources/cxx-stl/llvm-libc++/libs/armeabi-v7a/libc++_shared.so /data/local/tmp
-adb push $1 /data/local/tmp
-adb shell chmod 755 /data/local/tmp/$1
+for i in $@
+do
+	echo $i
+	adb push $i /data/local/tmp
+	adb shell chmod 755 /data/local/tmp/`basename $i`
+done
