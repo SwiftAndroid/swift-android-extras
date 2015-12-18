@@ -1,0 +1,9 @@
+#!/bin/sh
+myuuid=`uuidgen`
+adb shell mkdir -p /data/local/tmp/$myuuid
+adb push $1 /data/local/tmp/$myuuid >/dev/null || exit
+b=`basename $1`
+adb shell chmod 755 /data/local/tmp/$myuuid/$b >/dev/null || exit
+adb shell LD_LIBRARY_PATH=/data/local/tmp/$myuuid:/data/local/tmp /data/local/tmp/$myuuid/$b ">/data/local/tmp/$myuuid/__stdout" 1>&2
+adb shell cat /data/local/tmp/$myuuid/__stdout
+adb shell rm -rf /data/local/tmp/$myuuid
