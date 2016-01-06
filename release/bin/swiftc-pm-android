@@ -1,8 +1,7 @@
 #!/bin/bash
-export ANDROID_NDK_HOME=/home/zhuowei/ndk
+source ~/.swift-android-ndk-home
 case "$@" in 
 	*-lPackageDescription*)
-	#echo "execing stock swiftc" $@ >>/home/zhuowei/dumpargs
 	exec swiftc $@
 	;;
 	*)
@@ -15,7 +14,6 @@ case "$@" in
 		*)
 		newargs="$newargs -emit-library"
 	esac
-	#echo "execing android swiftc" $newargs >>/home/zhuowei/dumpargs
 	exec swiftc-android $newargs
 	;;
 esac
