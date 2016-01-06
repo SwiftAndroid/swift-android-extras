@@ -1,0 +1,21 @@
+#!/bin/bash
+export ANDROID_NDK_HOME=/home/zhuowei/ndk
+case "$@" in 
+	*-lPackageDescription*)
+	#echo "execing stock swiftc" $@ >>/home/zhuowei/dumpargs
+	exec swiftc $@
+	;;
+	*)
+	oldargs="$@"
+	newargs=${oldargs//-I \/usr\/local\/include/}
+	newargs=${newargs//-L\/usr\/local\/lib/}
+	case "$newargs" in
+		*-emit-module*)
+		;;
+		*)
+		newargs="$newargs -emit-library"
+	esac
+	#echo "execing android swiftc" $newargs >>/home/zhuowei/dumpargs
+	exec swiftc-android $newargs
+	;;
+esac
