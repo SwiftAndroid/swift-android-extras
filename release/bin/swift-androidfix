@@ -1,0 +1,10 @@
+#!/bin/bash
+mypath=`which $0`
+mydir=`dirname $mypath`
+if [ -z $ANDROID_NDK_HOME ]
+then
+	echo "ANDROID_NDK_HOME not set: run \"export ANDROID_NDK_HOME=/path/to/ndk\""
+	exit 1
+fi
+hardcodedpath="/home/zhuowei/ndk"
+sed -e "s@$hardcodedpath@$ANDROID_NDK_HOME@g" -i $mydir/../lib/swift/bionic/module.map
