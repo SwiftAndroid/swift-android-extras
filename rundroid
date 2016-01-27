@@ -1,9 +1,33 @@
 #!/bin/sh
+
 myuuid=`uuidgen`
+
+# Create the temporary directory on the device,
+# then push the executable to that directory.
 adb shell mkdir -p /data/local/tmp/$myuuid
 adb push $1 /data/local/tmp/$myuuid >/dev/null || exit
+
+# Push an executable script to the device. This script
+# writes the output from the test executable to a file named
+# "__stdout", and if the test executable succeeds, writes
+# "RUNDROID_SUCCEEDED" to a file named "__exitcode".
 b=`basename $1`
-adb shell chmod 755 /data/local/tmp/$myuuid/$b >/dev/null || exit
-adb shell LD_LIBRARY_PATH=/data/local/tmp/$myuuid:/data/local/tmp /data/local/tmp/$myuuid/$b ">/data/local/tmp/$myuuid/__stdout" 1>&2
+adb shell "echo \"LD_LIBRARY_PATH=/data/local/tmp/$myuuid:/data/local/tmp /data/local/tmp/$myuuid/$b > /data/local/tmp/$myuuid/__stdout && echo \"RUNDROID_SUCCEEDED\" > /data/local/tmp/$myuuid/__exitcode\" > /data/local/tmp/$myuuid/__rundroid" || exit
+adb shell chmod 755 /data/local/tmp/$myuuid/__rundroid || exit
+adb shell /data/local/tmp/$myuuid/__rundroid
+
+# First, check whether the test command succeeded.
+tmpfile=$(mktemp /tmp/rundroid.XXXXXX)
+adb shell cat /data/local/tmp/$myuuid/__exitcode > $tmpfile
+if ! grep -q RUNDROID_SUCCEEDED $tmpfile; then
+	echo "Test failed to run on Android device!"
+	echo "__stdout:"
+	adb shell cat /data/local/tmp/$myuuid/__stdout
+	exit 1
+fi
+
+# Then pass the test output to FileCheck.
 adb shell cat /data/local/tmp/$myuuid/__stdout
+
+# Finally, remove all run artifacts.
 adb shell rm -rf /data/local/tmp/$myuuid
