@@ -6,7 +6,7 @@ EXECUTABLE="$1"
 # We'll be running it in a temporary directory in /data/local/tmp.
 DEVICE_TMP_DIR="/data/local/tmp"
 DEVICE_UUID_DIR="$DEVICE_TMP_DIR/`uuidgen`"
-DEVICE_EXECUTABLE="$DEVICE_UUID_DIR/`basename "$EXECUTABLE"`"
+DEVICE_EXECUTABLE="$DEVICE_UUID_DIR/__cmd"
 DEVICE_EXECUTABLE_CMD="LD_LIBRARY_PATH=$DEVICE_UUID_DIR:$DEVICE_TMP_DIR $DEVICE_EXECUTABLE"
 
 # Output from running the executable on the device will be piped into these files.
@@ -17,7 +17,7 @@ DEVICE_RUNDROID="$DEVICE_UUID_DIR/__rundroid"
 # Create the temporary directory on the device,
 # then push the executable to that directory.
 adb shell mkdir -p "$DEVICE_UUID_DIR"
-adb push "$EXECUTABLE" "$DEVICE_UUID_DIR" 2>/dev/null || exit 1
+adb push "$EXECUTABLE" "$DEVICE_EXECUTABLE" 2>/dev/null || exit 1
 
 # Push a warpper script to the device. This script writes the output from the
 # test executable to a file named "__stdout", and if the test executable succeeds,
