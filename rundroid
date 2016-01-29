@@ -1,40 +1,51 @@
 #!/bin/sh
 
 # Grab the path to the executable we wish to run on device.
+# Shift the command-line arguments by one--we'll be using the
+# remaining arguments below.
 EXECUTABLE="$1"
+shift 1
 
-# We'll be running it in a temporary directory in /data/local/tmp.
-DEVICE_TMP_DIR="/data/local/tmp"
-DEVICE_UUID_DIR="$DEVICE_TMP_DIR/`uuidgen`"
-DEVICE_EXECUTABLE="$DEVICE_UUID_DIR/__cmd"
-DEVICE_EXECUTABLE_CMD="LD_LIBRARY_PATH=$DEVICE_UUID_DIR:$DEVICE_TMP_DIR $DEVICE_EXECUTABLE"
+DEVICE_TMP_DIR="/data/local/tmp" # We'll be running the executable in a temporary directory in /data/local/tmp.
+DEVICE_UUID_DIR="$DEVICE_TMP_DIR/`uuidgen`" # Each test gets its own sub-directory--especially important since tests can be run in parallel.
+DEVICE_EXECUTABLE="$DEVICE_UUID_DIR/__executable" # `adb` can only handle commands under a certain length. No matter what the original executable's name, on device we call it `__executable`.
+DEVICE_CMD="$DEVICE_UUID_DIR/__cmd" # This is the file containing the command we'll use to run the executable on the device.
+DEVICE_RUNDROID="$DEVICE_UUID_DIR/__rundroid" # This is the final wrapper, the script we use to run the test and capture its output.
 
 # Output from running the executable on the device will be piped into these files.
 DEVICE_STDOUT="$DEVICE_UUID_DIR/__stdout"
 DEVICE_EXITCODE="$DEVICE_UUID_DIR/__exitcode"
-DEVICE_RUNDROID="$DEVICE_UUID_DIR/__rundroid"
 
 # Create the temporary directory on the device,
 # then push the executable to that directory.
 adb shell mkdir -p "$DEVICE_UUID_DIR"
 adb push "$EXECUTABLE" "$DEVICE_EXECUTABLE" 2>/dev/null || exit 1
 
-# Push a warpper script to the device. This script writes the output from the
-# test executable to a file named "__stdout", and if the test executable succeeds,
-# writes "RUNDROID_SUCCEEDED" to a file named "__exitcode".
-adb shell "echo \"$DEVICE_EXECUTABLE_CMD > $DEVICE_STDOUT && echo \"RUNDROID_SUCCEEDED\" > $DEVICE_EXITCODE\" > $DEVICE_RUNDROID" || exit 1
+# Push wrapper scripts to the device. First, we need a script that executes the built
+# Swift executable with the command-line arguments `rundroid` was invoked with.
+# We put that in a shellscript, push it to the device, and make it executable.
+TMP_CMD=$(mktemp /tmp/rundroid_cmd.XXXXXX)
+echo "LD_LIBRARY_PATH=$DEVICE_UUID_DIR:$DEVICE_TMP_DIR $DEVICE_EXECUTABLE $@" > "$TMP_CMD"
+adb push "$TMP_CMD" "$DEVICE_CMD" 2>/dev/null
+adb shell chmod 755 "$DEVICE_CMD" || exit 1
+
+# This script writes the output from the test executable to a file named
+# "__stdout", and if the test executable succeeds, writes "RUNDROID_SUCCEEDED"
+# to a file named "__exitcode". We do this because `adb shell` does not report
+# the exit code of the command it executes on the device.
+adb shell "echo \"$DEVICE_CMD > $DEVICE_STDOUT && echo \"RUNDROID_SUCCEEDED\" > $DEVICE_EXITCODE\" > $DEVICE_RUNDROID" || exit 1
 adb shell chmod 755 "$DEVICE_RUNDROID" || exit 1
 
-# Execute the wrapper script. This runs the original executable on device.
+# We've pushed everything we need to the device. Now execute the wrapper script.
 adb shell "$DEVICE_RUNDROID"
 
 # First, check whether the executable succeeded on device.
-TMPFILE=$(mktemp /tmp/rundroid.XXXXXX)
-adb shell cat "$DEVICE_EXITCODE" > "$TMPFILE"
-if ! grep -q "RUNDROID_SUCCEEDED" "$TMPFILE"; then
+TMP_STDOUT=$(mktemp /tmp/rundroid_stdout.XXXXXX)
+adb shell cat "$DEVICE_EXITCODE" > "$TMP_STDOUT"
+if ! grep -q "RUNDROID_SUCCEEDED" "$TMP_STDOUT"; then
 	echo ""
 	echo "Executable '$DEVICE_EXECUTABLE' exited with a non-zero code on the Android device."
-	echo "Use the following command to see its output: 'adb shell $DEVICE_EXECUTABLE_CMD'"
+	echo "Use the following command to see its output: 'adb shell $DEVICE_CMD'"
 	echo ""
 	echo "Contents of '$DEVICE_STDOUT':"
 	adb shell cat "$DEVICE_STDOUT"
@@ -43,12 +54,12 @@ if ! grep -q "RUNDROID_SUCCEEDED" "$TMPFILE"; then
 	adb shell cat "$DEVICE_EXITCODE"
 	echo ""
 	echo "Re-running executable:"
-	echo "+ adb shell $DEVICE_EXECUTABLE_CMD"
+	echo "$ adb shell $DEVICE_CMD"
 
 	# Exit early. The output isn't passed to FileCheck, nor are any
 	# temporary directories removed; this allows the user to re-run
 	# the executable on the device.
-	adb shell "$DEVICE_EXECUTABLE_CMD" && exit 1
+	adb shell "$DEVICE_CMD" && exit 1
 fi
 
 # Then pass the test output to FileCheck.
